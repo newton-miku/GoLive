@@ -175,10 +175,18 @@ input { font-family: inherit; }
 .empty-sub { font-size: 0.85rem; color: var(--text-muted); line-height: 1.8; }
 
 /* === Live room page === */
-.live-page { display: flex; flex-direction: column; flex: 1; }
+.live-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 0;        /* needed for flex child to respect overflow */
+  min-height: 0;
+  overflow: hidden;
+}
 .live-status-bar {
   background: var(--bg-secondary); border-bottom: 1px solid var(--border);
   padding: 10px 24px; display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
 }
 .live-status-left { display: flex; align-items: center; gap: 12px; }
 .live-status-right { display: flex; align-items: center; gap: 16px; }
@@ -190,11 +198,40 @@ input { font-family: inherit; }
 .status-text { font-size: 0.875rem; color: var(--text-secondary); }
 .stat-item { font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
 
-.live-content { flex: 1; display: flex; min-height: 0; }
-.video-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.video-wrapper { position: relative; flex: 1; background: #000; display: flex; align-items: center; justify-content: center; }
-.artplayer-app { width: 100%; height: 100%; }
-.artplayer-app video { width: 100% !important; height: 100% !important; object-fit: contain; }
+.live-content {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  height: 0;           /* fill remaining viewport height */
+  overflow: hidden;
+}
+.video-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.video-wrapper {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.artplayer-app {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.artplayer-app video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+}
 
 .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; z-index: 10; }
 .loading-overlay { background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
@@ -212,6 +249,7 @@ input { font-family: inherit; }
 .control-bar {
   background: var(--bg-secondary); border-top: 1px solid var(--border);
   padding: 10px 20px; display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
 }
 .stream-duration { font-family: 'Monaco', monospace; font-size: 0.85rem; color: var(--text-secondary); }
 .control-right { display: flex; align-items: center; gap: 8px; }
@@ -257,14 +295,50 @@ input { font-family: inherit; }
 
 /* === Responsive === */
 @media (max-width: 900px) {
-  .live-content { flex-direction: column; }
-  .sidebar { width: 100%; border-left: none; border-top: 1px solid var(--border); max-height: 300px; }
+  .live-content {
+    flex-direction: column;
+    height: auto;       /* override the 0-height, let children determine it */
+    overflow: visible;
+  }
+  .video-area {
+    flex: none;
+    height: auto;
+    min-height: 0;
+  }
+  .video-wrapper {
+    flex: none;
+    /* 16:9 aspect ratio — works reliably on all mobile viewports */
+    aspect-ratio: 16 / 9;
+    width: 100%;
+    max-height: 70vh;
+  }
+  .artplayer-app {
+    height: 100%;
+    min-height: 0;
+  }
+  .sidebar {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    max-height: 300px;
+    flex-shrink: 0;
+  }
+  .sidebar-section { overflow-y: auto; }
 }
 @media (max-width: 640px) {
   .hero { padding: 40px 20px 30px; }
   .hero h1 { font-size: 1.8rem; }
   .section { padding: 16px 16px 40px; }
   .room-grid { grid-template-columns: 1fr; }
+  .live-status-bar { padding: 8px 16px; }
+  .live-status-right { gap: 10px; }
+  .stat-item { font-size: 0.72rem; }
+  .placeholder-icon { width: 60px; height: 60px; font-size: 28px; }
+  .placeholder-title { font-size: 1rem; }
+  .placeholder-sub { font-size: 0.8rem; }
+  .control-bar { padding: 8px 12px; }
+  .stream-duration { font-size: 0.78rem; }
+  .sidebar { max-height: 240px; }
 }
 
 /* === Scrollbar === */

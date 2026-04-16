@@ -55,8 +55,22 @@ export default function LiveRoom() {
     }
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text).then(() => showToast('已复制')).catch(() => {});
+  const copyToClipboard = (textToCopy) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(textToCopy).then(() => showToast('已复制')).catch(() => {});
+    } else {
+      const textArea = document.createElement('textarea');
+      textArea.value = textToCopy;
+      textArea.style.position = 'absolute';
+      textArea.style.opacity = '0';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand('copy') ? showToast('已复制') : showToast('复制失败');
+      textArea.remove();
+    }
   };
 
   // 初始化 ArtPlayer
@@ -322,7 +336,7 @@ export default function LiveRoom() {
             <div
               ref={initArt}
               className="artplayer-app"
-              style={{ width: '100%', height: '100%', background: '#000' }}
+              style={{ width: '100%', background: '#000' }}
             />
 
             {status === 'loading' && (

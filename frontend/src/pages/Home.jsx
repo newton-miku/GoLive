@@ -73,7 +73,7 @@ function RoomCard({ room }) {
       onMouseLeave={handleLeave}
     >
       <div className="card-preview">
-        <video ref={videoRef} muted autoPlay playsInline />
+        <video ref={videoRef} muted autoPlay playsInline webkit-playsinline="true" />
         <div className={`card-bg ${playing ? 'hidden' : ''}`}>
           <div className="card-icon">&#127909;</div>
           {room.active && <div className="card-hover-hint">悬停预览</div>}
