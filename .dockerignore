@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Build artifacts
+golive
+golive.exe
+dist/
+dist-all/
+
+# Go
+vendor/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Database
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Misc
+*.log
+.env
+.env.*
+Makefile
+Dockerfile
+.dockerignore
+README.md
+CLAUDE.md
