@@ -1,0 +1,16 @@
+services:
+  golive:
+    container_name: golive
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080/tcp"
+      - "8080:8080/udp"
+    volumes:
+      - golive-data:/app
+    environment:
+      - GOLIVE_DB=/app/golive.db
+
+volumes:
+  golive-data:

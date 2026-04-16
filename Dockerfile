@@ -10,16 +10,17 @@ RUN npm run build
 
 
 # ========== 第二阶段：编译 Go ==========
-FROM --platform=$BUILDPLATFORM golang:1.23-alpine AS go-builder
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS go-builder
 
 RUN apk add --no-cache git
 
+ENV GOPROXY=https://goproxy.cn,direct
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go mod tidy
 
 COPY . ./
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -ldflags="-s -w" -trimpath -o golive ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -ldflags="-s -w" -trimpath -mod=mod -o golive ./cmd/server
 
 
 # ========== 第三阶段：运行 ==========
@@ -39,10 +40,7 @@ COPY --from=go-builder    /src/golive  ./
 # 复制前端构建产物
 COPY --from=frontend-builder /src/frontend/dist ./frontend/dist
 
-# 复制空数据库占位（程序会在首次启动时自动创建）
-RUN touch /app/golive.db && chown appuser:appgroup /app/golive.db
-
-USER appuser
+RUN chown -R appuser:appgroup /app
 
 EXPOSE 8080
 
