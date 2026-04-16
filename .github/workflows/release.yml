@@ -25,14 +25,6 @@ jobs:
             artifact_name: golive-windows-amd64
             goos: windows
             goarch: amd64
-          - os: darwin
-            artifact_name: golive-darwin-amd64
-            goos: darwin
-            goarch: amd64
-          - os: darwin
-            artifact_name: golive-darwin-arm64
-            goos: darwin
-            goarch: arm64
 
     runs-on: ubuntu-latest
 
