@@ -15,10 +15,11 @@ import (
 
 type WhepHandler struct {
 	svc *service.StreamService
+	api *webrtc.API
 }
 
-func NewWhepHandler(svc *service.StreamService) *WhepHandler {
-	return &WhepHandler{svc: svc}
+func NewWhepHandler(svc *service.StreamService, api *webrtc.API) *WhepHandler {
+	return &WhepHandler{svc: svc, api: api}
 }
 
 func (h *WhepHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
@@ -41,8 +42,6 @@ func (h *WhepHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// 不检查 IsActive：允许浏览器先建立连接（等待推流）
-
 	offer, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(res, "Failed to read offer", http.StatusBadRequest)
@@ -51,7 +50,7 @@ func (h *WhepHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
 	setCORS(res)
 
-	peerConnection, err := webrtc.NewPeerConnection(webrtc.Configuration{
+	peerConnection, err := h.api.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
 			{URLs: []string{"stun:stun.miwifi.com:3478"}},
 			{URLs: []string{"stun:stun.chat.bilibili.com:3478"}},
@@ -66,7 +65,6 @@ func (h *WhepHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// 创建观看者轨道（要在 SetRemoteDescription 之前添加，这样 SDP answer 才包含轨道）
 	viewerVideoTrack, err := webrtc.NewTrackLocalStaticRTP(
 		webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264, ClockRate: 90000},
 		"video", "viewer")
@@ -96,7 +94,6 @@ func (h *WhepHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	room.AddViewerVideo(viewerVideoTrack)
 	room.AddViewerAudio(viewerAudioTrack)
 
-	// 收到 OBS 的 RTP 包后转发到观看者轨道
 	peerConnection.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		log.Infof("[WHEP] 收到 OBS 轨道: kind=%s ssrc=0x%x\n", track.Kind(), track.SSRC())
 		go func() {

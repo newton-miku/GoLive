@@ -21,10 +21,11 @@ type StreamServiceInterface interface {
 
 type WhipHandler struct {
 	svc StreamServiceInterface
+	api *webrtc.API
 }
 
-func NewWhipHandler(svc StreamServiceInterface) *WhipHandler {
-	return &WhipHandler{svc: svc}
+func NewWhipHandler(svc StreamServiceInterface, api *webrtc.API) *WhipHandler {
+	return &WhipHandler{svc: svc, api: api}
 }
 
 func (h *WhipHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
@@ -69,7 +70,7 @@ func (h *WhipHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
 	setCORS(res)
 
-	peerConnection, err := webrtc.NewPeerConnection(webrtc.Configuration{
+	peerConnection, err := h.api.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
 			{URLs: []string{"stun:stun.miwifi.com:3478"}},
 			{URLs: []string{"stun:stun.chat.bilibili.com:3478"}},
