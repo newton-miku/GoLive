@@ -1,0 +1,100 @@
+name: Release Build & Package
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            artifact_name: golive-linux-amd64
+            goos: linux
+            goarch: amd64
+          - os: linux
+            artifact_name: golive-linux-arm64
+            goos: linux
+            goarch: arm64
+          - os: windows
+            artifact_name: golive-windows-amd64
+            goos: windows
+            goarch: amd64
+          - os: darwin
+            artifact_name: golive-darwin-amd64
+            goos: darwin
+            goarch: amd64
+          - os: darwin
+            artifact_name: golive-darwin-arm64
+            goos: darwin
+            goarch: arm64
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Build Go binary
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            EXT=".exe"
+          fi
+          OUTPUT_NAME="golive$EXT"
+          echo "Building for GOOS=$GOOS GOARCH=$GOARCH -> $OUTPUT_NAME"
+          go build -ldflags="-s -w" -trimpath -o "$OUTPUT_NAME" ./cmd/server
+
+      - name: Prepare release directory
+        run: |
+          mkdir -p ${{ matrix.artifact_name }}
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            EXT=".exe"
+          fi
+          cp "golive$EXT" ${{ matrix.artifact_name }}/golive$EXT
+          cp -r frontend/dist ${{ matrix.artifact_name }}/dist
+
+      - name: Package release
+        run: |
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            powershell -Command "Compress-Archive -Path '${{ matrix.artifact_name }}/*' -DestinationPath '${{ matrix.artifact_name }}.zip' -Force"
+          else
+            tar -czvf ${{ matrix.artifact_name }}.tar.gz ${{ matrix.artifact_name }}
+          fi
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.artifact_name }}.zip
+            ${{ matrix.artifact_name }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
