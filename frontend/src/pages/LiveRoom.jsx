@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import Artplayer from 'artplayer';
 import { apiMe, apiResetKey } from '../api';
 
 const HOST = `${window.location.protocol}//${window.location.host}`;
 
 export default function LiveRoom() {
   const { roomId } = useParams();
-  const videoRef = useRef(null);
+  const artRef = useRef(null);
+  const artInstanceRef = useRef(null);
   const pcRef = useRef(null);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -57,6 +59,56 @@ export default function LiveRoom() {
     navigator.clipboard.writeText(text).then(() => showToast('已复制')).catch(() => {});
   };
 
+  // 初始化 ArtPlayer
+  const initArt = useCallback((el) => {
+    if (!el || artInstanceRef.current) return;
+
+    const art = new Artplayer({
+      container: el,
+      url: '',
+      autoplay: false,
+      muted: false,
+      pip: true,
+      autoSize: true,
+      autoMini: true,
+      screenshot: true,
+      setting: true,
+      loop: false,
+      flip: true,
+      playbackRate: true,
+      aspectRatio: true,
+      fullscreen: true,
+      fullscreenWeb: true,
+      miniProgressBar: true,
+      playsInline: true,
+      mutex: true,
+      backdrop: true,
+      whitelist: ['*'],
+      moreVideoAttr: {
+        crossOrigin: 'anonymous',
+      },
+    });
+
+    // ArtPlayer v5: video 元素在 play() 后才创建
+    // 等待 video 准备好后，如果有待播放的流则立即播放
+    art.on('ready', () => {
+      const art2 = artInstanceRef.current;
+      if (!art2) return;
+      if (art2._pendingStream) {
+        const stream = art2._pendingStream;
+        delete art2._pendingStream;
+        if (art2.video) {
+          art2.video.srcObject = stream;
+          art2.video.play().catch(e => console.warn('[ArtPlayer] play error:', e));
+        }
+      }
+    });
+
+    art.on('error', (e) => console.warn('[ArtPlayer] error:', e));
+    artInstanceRef.current = art;
+  }, []);
+
+  // 检查房间状态
   useEffect(() => {
     const check = async () => {
       if (isManualDisconnect.current) return;
@@ -89,8 +141,11 @@ export default function LiveRoom() {
       try { pcRef.current.close(); } catch {}
       pcRef.current = null;
     }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
+    const art = artInstanceRef.current;
+    if (art) {
+      art.pause();
+      if (art.video) art.video.srcObject = null;
+      delete art._pendingStream;
     }
     if (statsTimerRef.current) {
       clearInterval(statsTimerRef.current);
@@ -146,7 +201,14 @@ export default function LiveRoom() {
     closePC();
 
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      iceServers: [
+        { urls: 'stun:stun.miwifi.com:3478' },
+        { urls: 'stun:stun.chat.bilibili.com:3478' },
+        { urls: 'stun:stun.douyucdn.cn:18000' },
+        { urls: 'stun:stun.hitv.com:3478' },
+        { urls: 'stun:stun.cloudflare.com:3478' },
+        { urls: 'stun:stun.l.google.com:19302' },
+      ]
     });
     pcRef.current = pc;
 
@@ -174,9 +236,18 @@ export default function LiveRoom() {
       console.log('[LiveRoom] ontrack:', e.streams);
       const stream = e.streams && e.streams[0];
       if (!stream) return;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(() => {});
+
+      const art = artInstanceRef.current;
+      if (!art) return;
+
+      if (art.video) {
+        // video 已就绪，直接赋值
+        art.video.srcObject = stream;
+        art.video.play().catch(e => console.warn('[ArtPlayer] play error:', e));
+      } else {
+        // video 尚未创建，缓存流，等 'ready' 事件触发
+        art._pendingStream = stream;
+        art.play().catch(e => console.warn('[ArtPlayer] play error:', e));
       }
     };
 
@@ -247,12 +318,11 @@ export default function LiveRoom() {
       <div className="live-content">
         <div className="video-area">
           <div className="video-wrapper">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }}
+            {/* ArtPlayer 容器 */}
+            <div
+              ref={initArt}
+              className="artplayer-app"
+              style={{ width: '100%', height: '100%', background: '#000' }}
             />
 
             {status === 'loading' && (
