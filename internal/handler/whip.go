@@ -29,6 +29,7 @@ func NewWhipHandler(svc StreamServiceInterface, api *webrtc.API) *WhipHandler {
 }
 
 func (h *WhipHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	negotiated := false
 	roomID := strings.TrimPrefix(req.URL.Path, "/whip/")
 	if roomID == "" {
 		http.Error(res, "Room ID required", http.StatusBadRequest)
@@ -88,6 +89,12 @@ func (h *WhipHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	h.svc.OnStreamStart(room)
 	log.Infof("[WHIP] 直播开始: %s\n", room.Name)
 
+	defer func() {
+		if !negotiated {
+			h.svc.OnStreamEnd(room)
+		}
+	}()
+
 	peerConnection.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		log.Infof("[WHIP] 收到轨道: kind=%s\n", track.Kind())
 
@@ -119,26 +126,26 @@ func (h *WhipHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		}
 	})
 
-	h.answer(res, peerConnection, offer, roomID)
+	negotiated = h.answer(res, peerConnection, offer)
 }
 
-func (h *WhipHandler) answer(res http.ResponseWriter, pc *webrtc.PeerConnection, offer []byte, roomID string) {
+func (h *WhipHandler) answer(res http.ResponseWriter, pc *webrtc.PeerConnection, offer []byte) bool {
 	if err := pc.SetRemoteDescription(webrtc.SessionDescription{
 		Type: webrtc.SDPTypeOffer,
 		SDP:  string(offer),
 	}); err != nil {
 		log.Infof("[WHIP] SetRemoteDescription 失败: %v\n", err)
-		return
+		return false
 	}
 
 	answer, err := pc.CreateAnswer(nil)
 	if err != nil {
 		log.Infof("[WHIP] CreateAnswer 失败: %v\n", err)
-		return
+		return false
 	}
 	if err = pc.SetLocalDescription(answer); err != nil {
 		log.Infof("[WHIP] SetLocalDescription 失败: %v\n", err)
-		return
+		return false
 	}
 
 	select {
@@ -152,4 +159,5 @@ func (h *WhipHandler) answer(res http.ResponseWriter, pc *webrtc.PeerConnection,
 	res.Header().Set("Location", "/whip/")
 	res.WriteHeader(http.StatusCreated)
 	fmt.Fprint(res, sdp)
+	return true
 }

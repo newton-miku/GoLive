@@ -41,6 +41,10 @@ func (h *WhepHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Room not found", http.StatusNotFound)
 		return
 	}
+	if !room.IsActive() {
+		http.Error(res, "Room is not streaming", http.StatusServiceUnavailable)
+		return
+	}
 
 	offer, err := io.ReadAll(req.Body)
 	if err != nil {

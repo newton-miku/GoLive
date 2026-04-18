@@ -45,6 +45,7 @@ function RoomCard({ room }) {
       });
       if (res.ok) {
         const answer = await res.text();
+        if (pc.signalingState === 'closed') return;
         await pc.setRemoteDescription({ sdp: answer, type: 'answer' });
       } else {
         closePreview();

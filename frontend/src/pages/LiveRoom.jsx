@@ -157,9 +157,8 @@ export default function LiveRoom() {
     }
     const art = artInstanceRef.current;
     if (art) {
-      art.pause();
-      if (art.video) art.video.srcObject = null;
-      delete art._pendingStream;
+      try { art.destroy(false); } catch {}
+      artInstanceRef.current = null;
     }
     if (statsTimerRef.current) {
       clearInterval(statsTimerRef.current);
@@ -278,6 +277,7 @@ export default function LiveRoom() {
       });
       if (!res.ok) throw new Error(`服务器 ${res.status}`);
       const answer = await res.text();
+      if (pc.signalingState === 'closed') return;
       await pc.setRemoteDescription({ sdp: answer, type: 'answer' });
     } catch (err) {
       console.error('[LiveRoom] connect error:', err);
@@ -332,12 +332,14 @@ export default function LiveRoom() {
       <div className="live-content">
         <div className="video-area">
           <div className="video-wrapper">
-            {/* ArtPlayer 容器 */}
-            <div
-              ref={initArt}
-              className="artplayer-app"
-              style={{ width: '100%', background: '#000' }}
-            />
+            {/* ArtPlayer 容器 — 仅在连接/已连接时渲染 */}
+            {(connected || connecting) && (
+              <div
+                ref={initArt}
+                className="artplayer-app"
+                style={{ width: '100%', height: '100%', background: '#000' }}
+              />
+            )}
 
             {status === 'loading' && (
               <div className="overlay loading-overlay">
