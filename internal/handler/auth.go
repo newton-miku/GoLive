@@ -105,12 +105,20 @@ func (h *AuthAPIHandler) handleRegister(res http.ResponseWriter, req *http.Reque
 
 	token, _ := service.GenerateToken(user)
 	setSessionCookie(res, user.ID)
+
+	// Get stream key for register response
+	u := toAuthUser(user)
+	streamKey, _ := h.userSvc.GetStreamKey(user.ID)
+	if u != nil {
+		u.StreamKey = streamKey
+	}
+
 	res.WriteHeader(http.StatusCreated)
 	json.NewEncoder(res).Encode(authAPIResponse{
 		Success: true,
 		Message: "注册成功",
 		Token:   token,
-		User:    toAuthUser(user),
+		User:    u,
 	})
 }
 
@@ -139,12 +147,20 @@ func (h *AuthAPIHandler) handleLogin(res http.ResponseWriter, req *http.Request)
 
 	token, _ := service.GenerateToken(user)
 	setSessionCookie(res, user.ID)
+
+	// Get stream key for login response
+	u := toAuthUser(user)
+	streamKey, _ := h.userSvc.GetStreamKey(user.ID)
+	if u != nil {
+		u.StreamKey = streamKey
+	}
+
 	res.WriteHeader(http.StatusOK)
 	json.NewEncoder(res).Encode(authAPIResponse{
 		Success: true,
 		Message: "登录成功",
 		Token:   token,
-		User:    toAuthUser(user),
+		User:    u,
 	})
 }
 
